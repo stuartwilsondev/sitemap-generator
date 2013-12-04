@@ -1,4 +1,7 @@
 <?php
+namespace Stuartwilsondev\SitemapGenerator;
+
+use SimpleXMLElement;
 /**
  * @category   class
  * @package    SitemapGenerator
