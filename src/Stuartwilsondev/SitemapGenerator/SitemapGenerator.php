@@ -1,4 +1,6 @@
 <?php
+
+namespace Stuartwilsondev\SitemapGenerator;
 /**
  * @category   class
  * @package    SitemapGenerator

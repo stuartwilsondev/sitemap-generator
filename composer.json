@@ -1,0 +1,14 @@
+{
+    "name": "stuartwilsondev/sitemapGenerator",
+    "version": "dev-master",
+    "source": {
+        "url": "git://github.com/stuartwilsondev/sitemapGenerator.git",
+        "type": "git",
+        "reference": "develop"
+    },
+    "autoload": {
+        "psr-0" : {
+            "Stuartwilsondev\\SitemapGenerator" : "src"
+        }
+    }
+}
