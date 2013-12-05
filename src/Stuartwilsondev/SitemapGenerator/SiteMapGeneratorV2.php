@@ -518,7 +518,7 @@ class SiteMapGeneratorV2 {
      */
     private function writeFile($content,$filePath,$fileName)
     {
-        $file = fopen($filePath.$fileName, 'w');
+        $file = fopen($filePath."/".$fileName, 'w');
         fwrite($file, $content[0]);
         return fclose($file);
     }
