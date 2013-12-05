@@ -133,8 +133,8 @@ class SiteMapGeneratorV2 {
         "http://www.google.com/webmasters/tools/ping?sitemap=",
         "http://submissions.ask.com/ping?sitemap=",
         "http://www.bing.com/webmaster/ping.aspx?siteMap=",
-        "http://zhanzhang.baidu.com/dashboard/index",
-        "http://webmaster.yandex.com/site/map.xml",
+        //"http://zhanzhang.baidu.com/dashboard/index",
+        //"http://webmaster.yandex.com/site/map.xml?sitemap=",
     );
 
     /**
@@ -323,13 +323,13 @@ class SiteMapGeneratorV2 {
      */
     private function getSitemapHeader()
     {
-       $sitemapInfo = '<!-- generator="SitemapGenerator/'.self::CURRENT_VERSION.'" -->
+        $sitemapInfo = '<!-- generator="SitemapGenerator/'.self::CURRENT_VERSION.'" -->
                           <!-- sitemap-generator-url="https://github.com/stuartwilsondev/sitemap-generator"
                           sitemap-generator-version="'.self::CURRENT_VERSION.'" -->
                           <!-- generated-on="'.date('c').'" -->';
 
 
-       $sitemapHeader = '<?xml version="1.0" encoding="UTF-8"?>'.$sitemapInfo.'
+        $sitemapHeader = '<?xml version="1.0" encoding="UTF-8"?>'.$sitemapInfo.'
                              <urlset
                                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                  xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
@@ -445,7 +445,7 @@ class SiteMapGeneratorV2 {
 
         foreach($this->getUrls() as $url) {
 
-           //create a url element
+            //create a url element
             $row = $xmlSiteMap->addChild('url');
 
             //add the child elements to the url element - the url information
@@ -460,6 +460,9 @@ class SiteMapGeneratorV2 {
         if (strlen($xmlSiteMap->asXML()) > 10485760)
             throw new LengthException("Sitemap > 10MB, will not be indexed unless it is smaller ( < 10MB )");
         $this->addSitemap($xmlSiteMap->asXML());
+
+        $this->setSitemapFullURL(sprintf("%s/%s",$this->getBaseUrl(),self::SITEMAP_FILE_NAME));
+
     }
 
     /**
@@ -523,7 +526,7 @@ class SiteMapGeneratorV2 {
 
     /**
      * Notifies search engines of updated sitemap files
-     * 
+     *
      * @return array
      * @throws \BadMethodCallException
      */
@@ -537,21 +540,20 @@ class SiteMapGeneratorV2 {
         }
 
         $result = array();
+        foreach($this->getSearchEngines() as $searchEngine){
 
-        /*foreach($this->getSearchEngines() as $searchEngine){
             $submitSite = curl_init($searchEngine.htmlspecialchars($this->getSitemapFullURL(),ENT_QUOTES,'UTF-8'));
-            curl_setopt($submitSite, CURLOPT_RETURNTRANSFER, true);
+
             $responseContent = curl_exec($submitSite);
             $response = curl_getinfo($submitSite);
 
             $submitSiteShort = array_reverse(explode(".",parse_url($searchEngine, PHP_URL_HOST)));
 
             $result[] = array("site"=>$submitSiteShort[1].".".$submitSiteShort[0],
-                "fullsite"=>$searchEngines[$i].htmlspecialchars($this->sitemapFullURL, ENT_QUOTES,'UTF-8'),
+                "fullsite"=>$searchEngine.htmlspecialchars($this->sitemapFullURL, ENT_QUOTES,'UTF-8'),
                 "http_code"=>$response['http_code'],
                 "message"=>str_replace("\n", " ", strip_tags($responseContent)));
-        }*/
-
+        }
         return $result;
     }
 }
