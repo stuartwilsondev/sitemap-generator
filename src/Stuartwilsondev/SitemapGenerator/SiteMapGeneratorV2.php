@@ -323,13 +323,7 @@ class SiteMapGeneratorV2 {
      */
     private function getSitemapHeader()
     {
-        $sitemapInfo = '<!-- generator="SitemapGenerator/'.self::CURRENT_VERSION.'" -->
-                          <!-- sitemap-generator-url="https://github.com/stuartwilsondev/sitemap-generator"
-                          sitemap-generator-version="'.self::CURRENT_VERSION.'" -->
-                          <!-- generated-on="'.date('c').'" -->';
-
-
-        $sitemapHeader = '<?xml version="1.0" encoding="UTF-8"?>'.$sitemapInfo.'
+        $sitemapHeader = '<?xml version="1.0" encoding="UTF-8"?>
                              <urlset
                                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                                  xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
