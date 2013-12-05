@@ -51,8 +51,8 @@ class SiteMapGeneratorV2 {
     private $createGZipFile = false;
     private $baseUrl;
     private $basePath;
-    private $urls;
-    private $sitemaps;
+    private $urls = array();
+    private $sitemaps = array();
     private $sitemapIndex;
     private $sitemapFullURL;
 
@@ -311,7 +311,7 @@ class SiteMapGeneratorV2 {
             );
         }
 
-        if(!in_array($priority,$this->getAllowedPriorities())){
+        if(!in_array((string)$priority,$this->getAllowedPriorities())){
             throw new InvalidArgumentException(
                 sprintf("The provided priority of %s is not an allowed priority. Must be one of %s",
                     $priority,
@@ -326,9 +326,9 @@ class SiteMapGeneratorV2 {
         $currentUrl->priority = $priority;
         $currentUrl->changefreq = $changeFrequency;
         if(isset($lastModified)){
-            $currentUrl->lastMod = $lastModified;
+            $currentUrl->lastmod = $lastModified;
         }else{
-            $currentUrl->lastMod = date('c');
+            $currentUrl->lastmod = date('c');
         }
 
         $this->addUrlToUrls($currentUrl);
@@ -404,7 +404,7 @@ class SiteMapGeneratorV2 {
     private function writeFile($content,$filePath,$fileName)
     {
         $file = fopen($filePath.$fileName, 'w');
-        fwrite($file, $content);
+        fwrite($file, $content[0]);
         return fclose($file);
     }
 
