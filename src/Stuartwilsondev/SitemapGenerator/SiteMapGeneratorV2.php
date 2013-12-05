@@ -13,6 +13,8 @@ namespace Stuartwilsondev\SitemapGenerator;
 use InvalidArgumentException;
 use LengthException;
 use Exception;
+use SimpleXMLElement;
+use BadMethodCallException;
 
 class SiteMapGeneratorV2 {
 
@@ -55,11 +57,12 @@ class SiteMapGeneratorV2 {
     private $sitemapFullURL;
 
     private $searchEngines = array(
-        array("http://search.yahooapis.com/SiteExplorerService/V1/updateNotification?appid=USERID&url=",
-            "http://search.yahooapis.com/SiteExplorerService/V1/ping?sitemap="),
+        "http://search.yahooapis.com/SiteExplorerService/V1/ping?sitemap=",
         "http://www.google.com/webmasters/tools/ping?sitemap=",
         "http://submissions.ask.com/ping?sitemap=",
-        "http://www.bing.com/webmaster/ping.aspx?siteMap="
+        "http://www.bing.com/webmaster/ping.aspx?siteMap=",
+        "http://zhanzhang.baidu.com/dashboard/index",
+        "http://webmaster.yandex.com/site/map.xml",
     );
 
     public function __construct($baseURL, $basePath = "", $additionalSearchEngines=null)
@@ -220,13 +223,33 @@ class SiteMapGeneratorV2 {
         return self::$allowedPriorities;
     }
 
-
-
     private function addUrlToUrls(\stdClass $url){
         array_push($this->urls,$url);
     }
 
+    private function addSitemap($sitemap)
+    {
+        array_push($this->sitemaps,$sitemap);
+    }
 
+    private function getSitemapHeader()
+    {
+       $sitemapInfo = '<!-- generator="SitemapGenerator/'.self::CURRENT_VERSION.'" -->
+                          <!-- sitemap-generator-url="https://github.com/stuartwilsondev/sitemap-generator"
+                          sitemap-generator-version="'.self::CURRENT_VERSION.'" -->
+                          <!-- generated-on="'.date('c').'" -->';
+
+
+       $sitemapHeader = '<?xml version="1.0" encoding="UTF-8"?>'.$sitemapInfo.'
+                             <urlset
+                                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                 xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+                                 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"
+                                 xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                             </urlset>';
+
+        return $sitemapHeader;
+    }
 
     /**
      * Bulk add urls if they have already been collected.
@@ -298,7 +321,6 @@ class SiteMapGeneratorV2 {
         }
 
         //TODO length
-
         $currentUrl = new \stdClass();
         $currentUrl->loc = $url;
         $currentUrl->priority = $priority;
@@ -321,6 +343,98 @@ class SiteMapGeneratorV2 {
         if(count($this->getUrls()) > self::MAX_URLS_PER_SITEMAP){
             throw new Exception('Too many Urls');
         }
+
+
+        //Everything is ok so far - generate the xml sitemap
+        $xmlSiteMap = new SimpleXMLElement($this->getSitemapHeader());
+
+        foreach($this->getUrls() as $url) {
+
+           //create a url element
+            $row = $xmlSiteMap->addChild('url');
+
+            //add the child elements to the url element - the url information
+            $row->addChild('loc',htmlspecialchars($url->loc,ENT_QUOTES,'UTF-8'));
+            $row->addChild('priority',$url->priority);
+            $row->addChild('changefreq',$url->changefreq);
+            $row->addChild('lastmod', $url->lastmod);
+
+        }
+
+        //check the file is an acceptable size
+        if (strlen($xmlSiteMap->asXML()) > 10485760)
+            throw new LengthException("Sitemap > 10MB, will not be indexed unless it is smaller ( < 10MB )");
+        $this->addSitemap($xmlSiteMap->asXML());
+    }
+
+    public function createSitemapIndex()
+    {
+        $sitemapIndex = new SimpleXMLElement($this->getSitemapHeader());
+        foreach($this->getSitemaps() as $sitemap){
+            $row = $sitemapIndex->addChild('sitemap');
+            $row->addChild('loc',$this->getBaseUrl().htmlentities($sitemap[0]));
+            $row->addChild('lastmod', date('c'));
+        }
+
+        $this->sitemapFullURL = $this->getBaseUrl().'sitemap-index.xml';
+        $this->sitemapIndex = array(
+            'sitemap-index.xml',
+            $sitemapIndex->asXML()
+        );
+    }
+
+    public function writeSitemap()
+    {
+        if (!isset($this->sitemaps)) {
+            throw new BadMethodCallException("No sitemap to write. Call createSitemap function first.");
+        }
+
+        if($this->getSitemapIndex()){
+            $this->writeFile($this->getSitemapIndex(), $this->getBasePath(), self::SITEMAP_INDEX_FILE_NAME);
+        }
+
+        if($this->getSitemaps()){
+            $this->writeFile($this->getSitemaps(),$this->getBasePath(),self::SITEMAP_FILE_NAME);
+        }
+
+
+
+    }
+
+    private function writeFile($content,$filePath,$fileName)
+    {
+        $file = fopen($filePath.$fileName, 'w');
+        fwrite($file, $content);
+        return fclose($file);
+    }
+
+
+    public function notifySearchEngines()
+    {
+        if(!$this->getSitemaps()) {
+            throw new BadMethodCallException("No Sitemapvto submit. To submit sitemap, call createSitemap function first.");
+        }
+        if(!extension_loaded('curl')){
+            throw new BadMethodCallException("cURL library is required and not loaded.");
+        }
+
+        $result = array();
+
+        /*foreach($this->getSearchEngines() as $searchEngine){
+            $submitSite = curl_init($searchEngine.htmlspecialchars($this->getSitemapFullURL(),ENT_QUOTES,'UTF-8'));
+            curl_setopt($submitSite, CURLOPT_RETURNTRANSFER, true);
+            $responseContent = curl_exec($submitSite);
+            $response = curl_getinfo($submitSite);
+
+            $submitSiteShort = array_reverse(explode(".",parse_url($searchEngine, PHP_URL_HOST)));
+
+            $result[] = array("site"=>$submitSiteShort[1].".".$submitSiteShort[0],
+                "fullsite"=>$searchEngines[$i].htmlspecialchars($this->sitemapFullURL, ENT_QUOTES,'UTF-8'),
+                "http_code"=>$response['http_code'],
+                "message"=>str_replace("\n", " ", strip_tags($responseContent)));
+        }*/
+
+        return $result;
     }
 }
 
