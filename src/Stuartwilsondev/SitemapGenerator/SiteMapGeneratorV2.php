@@ -16,15 +16,46 @@ use Exception;
 use SimpleXMLElement;
 use BadMethodCallException;
 
+/**
+ * Class SiteMapGeneratorV2
+ * @package Stuartwilsondev\SitemapGenerator
+ */
 class SiteMapGeneratorV2 {
 
+    /**
+     * The final file name of the sitemap file
+     */
     const SITEMAP_FILE_NAME = 'sitemap.xml';
+
+    /**
+     * The final name of the sitemap index file
+     */
     const SITEMAP_INDEX_FILE_NAME = 'sitemap-index.xml';
+
+    /**
+     * the name of the robots.txt file
+     */
     const ROBOTS_FILE_NAME = 'robots.txt';
+
+    /**
+     * MAximum number of Urls per sitemap file
+     */
     const MAX_URLS_PER_SITEMAP = 50000;
+
+    /**
+     * Current version of this script
+     */
     const CURRENT_VERSION = '2.0';
+
+    /**
+     * Maximum Url length (per url)
+     */
     const URL_LENGTH = 2048;
 
+    /**
+     * Array containing the valid frequency strings that can be used
+     * @var array
+     */
     protected static $allowedFrequencies = array(
         'always',
         'hourly',
@@ -35,6 +66,10 @@ class SiteMapGeneratorV2 {
         'never'
     );
 
+    /**
+     * Array containing the valid priorities that can be given to Urls
+     * @var array
+     */
     protected static $allowedPriorities = array(
         '1',
         '0.9',
@@ -48,14 +83,51 @@ class SiteMapGeneratorV2 {
         '0.1'
     );
 
+    /**
+     * Whether a GZipped file should also be created (not currently used)
+     * @var bool
+     */
     private $createGZipFile = false;
+
+    /**
+     * Placeholder for the base url of the site (where the sitemaps should live)
+     * @var String
+     */
     private $baseUrl;
+
+    /**
+     * Placeholder for the basepath
+     * @var
+     */
     private $basePath;
+
+    /**
+     * Placeholder for the Urls to which they are added
+     * @var array
+     */
     private $urls = array();
+
+    /**
+     * Placeholder for Sitemaps
+     * @var array
+     */
     private $sitemaps = array();
+
+    /**
+     *
+     * @var
+     */
     private $sitemapIndex;
+
+    /**
+     * @var
+     */
     private $sitemapFullURL;
 
+    /**
+     * An array containing the urls of the search engines that should be notified when the sitemap changes
+     * @var array
+     */
     private $searchEngines = array(
         "http://search.yahooapis.com/SiteExplorerService/V1/ping?sitemap=",
         "http://www.google.com/webmasters/tools/ping?sitemap=",
@@ -65,6 +137,13 @@ class SiteMapGeneratorV2 {
         "http://webmaster.yandex.com/site/map.xml",
     );
 
+    /**
+     * If $additionalSearchEngines are provided they are merged with the predefined ones
+     *
+     * @param $baseURL
+     * @param string $basePath
+     * @param null $additionalSearchEngines
+     */
     public function __construct($baseURL, $basePath = "", $additionalSearchEngines=null)
     {
         $this->setBaseUrl($baseURL);
@@ -223,15 +302,25 @@ class SiteMapGeneratorV2 {
         return self::$allowedPriorities;
     }
 
+    /**
+     * @param \stdClass $url
+     */
     private function addUrlToUrls(\stdClass $url){
         array_push($this->urls,$url);
     }
 
+    /**
+     * @param $sitemap
+     */
     private function addSitemap($sitemap)
     {
         array_push($this->sitemaps,$sitemap);
     }
 
+    /**
+     * Generate the Sitemap header
+     * @return string
+     */
     private function getSitemapHeader()
     {
        $sitemapInfo = '<!-- generator="SitemapGenerator/'.self::CURRENT_VERSION.'" -->
@@ -334,6 +423,13 @@ class SiteMapGeneratorV2 {
         $this->addUrlToUrls($currentUrl);
     }
 
+    /**
+     * Creates an XML sitemap from the Urls that have been added to the Url array.
+     * Checks there are Urls and the number does not exceed the maximum permitted
+     *
+     * @throws \LengthException
+     * @throws \Exception
+     */
     public function createSiteMap()
     {
         if(!is_array($this->getUrls()) || !count($this->getUrls())){
@@ -343,7 +439,6 @@ class SiteMapGeneratorV2 {
         if(count($this->getUrls()) > self::MAX_URLS_PER_SITEMAP){
             throw new Exception('Too many Urls');
         }
-
 
         //Everything is ok so far - generate the xml sitemap
         $xmlSiteMap = new SimpleXMLElement($this->getSitemapHeader());
@@ -367,6 +462,10 @@ class SiteMapGeneratorV2 {
         $this->addSitemap($xmlSiteMap->asXML());
     }
 
+    /**
+     * Create the sitemap-index.xml file
+     * which contains links to individual sitemaps
+     */
     public function createSitemapIndex()
     {
         $sitemapIndex = new SimpleXMLElement($this->getSitemapHeader());
@@ -383,6 +482,11 @@ class SiteMapGeneratorV2 {
         );
     }
 
+    /**
+     * Wrapper for writeToFile() that writes the sitemap-index.xml file and sitemap.xml to the predefined locations
+     *
+     * @throws \BadMethodCallException
+     */
     public function writeSitemap()
     {
         if (!isset($this->sitemaps)) {
@@ -401,6 +505,14 @@ class SiteMapGeneratorV2 {
 
     }
 
+    /**
+     * Writes file
+     *
+     * @param $content
+     * @param $filePath
+     * @param $fileName
+     * @return bool
+     */
     private function writeFile($content,$filePath,$fileName)
     {
         $file = fopen($filePath.$fileName, 'w');
@@ -409,10 +521,16 @@ class SiteMapGeneratorV2 {
     }
 
 
+    /**
+     * Notifies search engines of updated sitemap files
+     * 
+     * @return array
+     * @throws \BadMethodCallException
+     */
     public function notifySearchEngines()
     {
         if(!$this->getSitemaps()) {
-            throw new BadMethodCallException("No Sitemapvto submit. To submit sitemap, call createSitemap function first.");
+            throw new BadMethodCallException("No Sitemap to submit. To submit sitemap, call createSitemap function first.");
         }
         if(!extension_loaded('curl')){
             throw new BadMethodCallException("cURL library is required and not loaded.");
