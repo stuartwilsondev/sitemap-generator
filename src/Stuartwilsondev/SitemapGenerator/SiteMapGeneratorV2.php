@@ -1,8 +1,10 @@
 <?php
 /**
  * @author Stuart Wilson <stuart@stuartwilsondev.com>
- * This is based on the work already done int he sitemapgenerator available
- * on Github @see https://github.com/pawelantczak/php-sitemap-generator
+ * This is based on the work already done in the sitemapgenerator available
+ * on Github
+ *
+ * @see https://github.com/pawelantczak/php-sitemap-generator
  *
  * This class is an updated version of the original
  *
@@ -15,6 +17,8 @@ use LengthException;
 use Exception;
 use SimpleXMLElement;
 use BadMethodCallException;
+use XMLReader;
+use XMLWriter;
 
 /**
  * Class SiteMapGeneratorV2
@@ -318,23 +322,6 @@ class SiteMapGeneratorV2 {
     }
 
     /**
-     * Generate the Sitemap header
-     * @return string
-     */
-    private function getSitemapHeader()
-    {
-        $sitemapHeader = '<?xml version="1.0" encoding="UTF-8"?>
-                             <urlset
-                                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                                 xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-                                 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"
-                                 xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-                             </urlset>';
-
-        return $sitemapHeader;
-    }
-
-    /**
      * Bulk add urls if they have already been collected.
      * This accepts an array off arrays which MUST have the keys
      * ['url']
@@ -434,26 +421,36 @@ class SiteMapGeneratorV2 {
             throw new Exception('Too many Urls');
         }
 
-        //Everything is ok so far - generate the xml sitemap
-        $xmlSiteMap = new SimpleXMLElement($this->getSitemapHeader());
+        $xmlSiteMap = new XMLWriter();  //instantiate the XmlWriter
+        $xmlSiteMap->openMemory();      //assign memory for output
+        $xmlSiteMap->startDocument();  //start the document
+
+        //create urlset element.
+        $xmlSiteMap->startElement('urlset');
+
+        //add attributes
+        $xmlSiteMap->writeAttribute('xmlns','http://www.sitemaps.org/schemas/sitemap/0.9');
+
 
         foreach($this->getUrls() as $url) {
 
-            //create a url element
-            $row = $xmlSiteMap->addChild('url');
-
-            //add the child elements to the url element - the url information
-            $row->addChild('loc',htmlspecialchars($url->loc,ENT_QUOTES,'UTF-8'));
-            $row->addChild('priority',$url->priority);
-            $row->addChild('changefreq',$url->changefreq);
-            $row->addChild('lastmod', $url->lastmod);
+            $xmlSiteMap->startElement('url');
+            $xmlSiteMap->writeElement('loc', htmlspecialchars($url->loc,ENT_QUOTES,'UTF-8'));
+            $xmlSiteMap->writeElement('priority', $url->priority);
+            $xmlSiteMap->writeElement('changefreq', $url->changefreq);
+            $xmlSiteMap->writeElement('lastmod', $url->lastmod);
+            $xmlSiteMap->endElement();
 
         }
 
-        //check the file is an acceptable size
-        if (strlen($xmlSiteMap->asXML()) > 10485760)
-            throw new LengthException("Sitemap > 10MB, will not be indexed unless it is smaller ( < 10MB )");
-        $this->addSitemap($xmlSiteMap->asXML());
+        //End of urlset
+        $xmlSiteMap->endElement();
+
+        //close the doc
+        $xmlSiteMap->endDocument();
+
+        $this->addSitemap(simplexml_load_file($xmlSiteMap));
+
 
         $this->setSitemapFullURL(sprintf("%s/%s",$this->getBaseUrl(),self::SITEMAP_FILE_NAME));
 
