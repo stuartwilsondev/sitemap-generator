@@ -118,6 +118,12 @@ class SiteMapGeneratorV2 {
     private $sitemaps = array();
 
     /**
+     * Placeholder for Sitemap
+     * @var array
+     */
+    private $sitemap;
+
+    /**
      *
      * @var
      */
@@ -267,6 +273,24 @@ class SiteMapGeneratorV2 {
     }
 
     /**
+     * @param $sitemap
+     */
+    public function setSitemap($sitemap)
+    {
+        $this->sitemap = $sitemap;
+    }
+
+    /**
+     * @return XMLWriter
+     */
+    public function getSitemap()
+    {
+        return $this->sitemap;
+    }
+
+
+
+    /**
      * @return mixed
      */
     public function getSitemaps()
@@ -318,7 +342,7 @@ class SiteMapGeneratorV2 {
      */
     private function addSitemap($sitemap)
     {
-        array_push($this->sitemaps,$sitemap);
+        $this->sitemap = $sitemap;
     }
 
     /**
@@ -423,6 +447,7 @@ class SiteMapGeneratorV2 {
 
         $xmlSiteMap = new XMLWriter();  //instantiate the XmlWriter
         $xmlSiteMap->openMemory();      //assign memory for output
+        $xmlSiteMap->setIndent(true);
         $xmlSiteMap->startDocument();  //start the document
 
         //create urlset element.
@@ -448,11 +473,7 @@ class SiteMapGeneratorV2 {
 
         //close the doc
         $xmlSiteMap->endDocument();
-
-        $this->addSitemap(simplexml_load_file($xmlSiteMap));
-
-
-        $this->setSitemapFullURL(sprintf("%s/%s",$this->getBaseUrl(),self::SITEMAP_FILE_NAME));
+        $this->setSitemap($xmlSiteMap);
 
     }
 
@@ -491,8 +512,8 @@ class SiteMapGeneratorV2 {
             $this->writeFile($this->getSitemapIndex(), $this->getBasePath(), self::SITEMAP_INDEX_FILE_NAME);
         }
 
-        if($this->getSitemaps()){
-            $this->writeFile($this->getSitemaps(),$this->getBasePath(),self::SITEMAP_FILE_NAME);
+        if($this->getSitemap()){
+            $this->writeFile($this->getSitemap(),$this->getBasePath(),self::SITEMAP_FILE_NAME);
         }
 
 
@@ -502,18 +523,35 @@ class SiteMapGeneratorV2 {
     /**
      * Writes file
      *
-     * @param $content
-     * @param $filePath
+     * @param XMLWriter $sitemap
+     * @param $toFilePath
      * @param $fileName
      * @return bool
      */
-    private function writeFile($content,$filePath,$fileName)
+    private function writeFile(XMLWriter $sitemap,$toFilePath,$fileName)
     {
-        $file = fopen($filePath."/".$fileName, 'w');
-        fwrite($file, $content[0]);
+        $this->setSitemapFullURL(sprintf("%s/%s",$this->getBaseUrl(),self::SITEMAP_FILE_NAME));
+        $file = fopen($toFilePath."/".$fileName, 'w');
+        fwrite($file, $sitemap->flush());
         return fclose($file);
     }
 
+
+    /**
+     * Get the string value for the site map fro the XMLWriter instance
+     *
+     * @return string
+     * @throws \BadMethodCallException
+     */
+    public function getSitemapString()
+    {
+        $sitemap = $this->getSitemap();
+        if(! $sitemap instanceof XMLWriter){
+            throw new BadMethodCallException("No sitemap exists. Create one first.");
+        }
+
+        return $sitemap->flush();
+    }
 
     /**
      * Notifies search engines of updated sitemap files
@@ -523,7 +561,13 @@ class SiteMapGeneratorV2 {
      */
     public function notifySearchEngines()
     {
-        if(!$this->getSitemaps()) {
+
+        //check the url has been set
+        if(!$this->getSitemapFullURL()){
+            throw new BadMethodCallException("The sitemap URL has not been set. Please call setSitemapFullURL() first with the public url of the sitemap ");
+        }
+
+        if(!$this->getSitemap()) {
             throw new BadMethodCallException("No Sitemap to submit. To submit sitemap, call createSitemap function first.");
         }
         if(!extension_loaded('curl')){
@@ -541,7 +585,7 @@ class SiteMapGeneratorV2 {
             $submitSiteShort = array_reverse(explode(".",parse_url($searchEngine, PHP_URL_HOST)));
 
             $result[] = array("site"=>$submitSiteShort[1].".".$submitSiteShort[0],
-                "fullsite"=>$searchEngine.htmlspecialchars($this->sitemapFullURL, ENT_QUOTES,'UTF-8'),
+                "fullsite"=>$searchEngine.htmlspecialchars($this->getSitemapFullURL(), ENT_QUOTES,'UTF-8'),
                 "http_code"=>$response['http_code'],
                 "message"=>str_replace("\n", " ", strip_tags($responseContent)));
         }
